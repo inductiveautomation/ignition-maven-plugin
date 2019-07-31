@@ -1,0 +1,50 @@
+# A general .gitignore for Gradle built Java projects that
+# may use IntelliJ or Eclipse as an IDE.
+
+syntax: glob
+# Ignition Module files
+*.modl
+ 
+# Java class files
+*.class
+ 
+# generated files
+bin/
+gen/
+ 
+# Local configuration file used for proj. specific settings (sdk paths, etc)
+local.properties
+ 
+# Eclipse project files
+.classpath
+.project
+ 
+# Intellij project files
+*.iml  
+*.ipr
+*.iws
+.idea/
+
+# git repos
+.git/
+ 
+# Maven related
+*/target/
+**/target
+
+# Gradle related files and caches
+.gradletasknamecache
+.gradle/
+build/
+bin/
+
+syntax: regexp
+^(.*[\\/])?gen[\\/].*
+^(.*[\\/])?bin[\\/].*
+^(.*[\\/])?obj[\\/].*
+^(.*[\\/])?log[\\/].*
+^(.*[\\/])?obf[\\/].*
+^(.*[\\/])?jars[\\/].*
+^(.*[\\/])?jar-sources[\\/].*
+^(.*[\\/])?javadoc[\\/].*
+^(.*[\\/])?.metadata[\\/].*
