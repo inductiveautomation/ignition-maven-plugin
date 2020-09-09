@@ -63,8 +63,13 @@ public class PostModuleMojo extends AbstractMojo {
             getLog().debug("Attempting to load the following path: ");
 
             Path buildPath = Paths.get(project.getBuild().getDirectory());
-            String modulePath = buildPath.toAbsolutePath() + File.separator +
+            String modulePath;
+                
+            if(this.moduleFile == null)
+                modulePath = buildPath.toAbsolutePath() + File.separator +
                     StringUtils.replace(moduleName, ' ', '-') + "-unsigned.modl";
+            else
+                modulePath = this.moduleFile.getPath();
 
             getLog().info("Installing " + modulePath + " to gateway.");
 
