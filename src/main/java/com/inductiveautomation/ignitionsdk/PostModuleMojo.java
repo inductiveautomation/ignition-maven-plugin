@@ -79,9 +79,9 @@ public class PostModuleMojo extends AbstractMojo {
 
         try {
             if (gatewayAddress == null) {
-                gatewayUrl = new URL("http://localhost:8088/main/system/DeveloperModuleLoadingServlet");
+                gatewayUrl = new URL("http://localhost:8088/system/DeveloperModuleLoadingServlet");
             } else {
-                gatewayUrl = new URL(gatewayAddress + "/main/system/DeveloperModuleLoadingServlet");
+                gatewayUrl = new URL(gatewayAddress + "/system/DeveloperModuleLoadingServlet");
             }
 
             getLog().info("Deploying to " + gatewayUrl.toString());
