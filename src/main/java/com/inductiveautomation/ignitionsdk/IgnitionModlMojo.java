@@ -1,5 +1,20 @@
 package com.inductiveautomation.ignitionsdk;
 
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.*;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.StringUtils;
+import org.zeroturnaround.zip.ZipUtil;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -7,34 +22,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-
-import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.FileUtils;
-import org.codehaus.plexus.util.StringUtils;
-import org.zeroturnaround.zip.ZipUtil;
+import java.util.*;
 
 @Mojo(name = "modl",
     defaultPhase = LifecyclePhase.PACKAGE,
-    requiresDependencyResolution = ResolutionScope.RUNTIME)
+    requiresDependencyResolution = ResolutionScope.COMPILE)
 public class IgnitionModlMojo extends AbstractMojo {
     /**
      * The {@link MavenProject}.
@@ -163,13 +155,17 @@ public class IgnitionModlMojo extends AbstractMojo {
 
             getLog().info(String.format("project=%s, ignitionScope=%s", p.getName(), ignitionScope));
 
+            Set<Artifact> artifacts = p.getArtifacts();
+            Set<Artifact> dependencyArtifacts = p.getDependencyArtifacts();
+            getLog().info(String.format("Found %d artifacts with %d dependencies for project: %s",
+                    artifacts.size(), dependencyArtifacts.size(), p.getName()));
+
+            SetView<Artifact> projectArtifacts = Sets.union(artifacts, dependencyArtifacts);
+
             if (StringUtils.contains(ignitionScope, "C")) {
                 getLog().info("building client scoped artifact set...");
 
                 clientScopeArtifacts.add(p.getArtifact());
-
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
 
                 for (Artifact artifact : projectArtifacts) {
                     if ("compile".equals(artifact.getScope())) {
@@ -183,9 +179,6 @@ public class IgnitionModlMojo extends AbstractMojo {
 
                 designerScopeArtifacts.add(p.getArtifact());
 
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
-
                 for (Artifact artifact : projectArtifacts) {
                     if ("compile".equals(artifact.getScope())) {
                         designerScopeArtifacts.add(artifact);
@@ -197,9 +190,6 @@ public class IgnitionModlMojo extends AbstractMojo {
                 getLog().info("building gateway scoped artifact set...");
 
                 gatewayScopeArtifacts.add(p.getArtifact());
-
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
 
                 for (Artifact artifact : projectArtifacts) {
                     if ("compile".equals(artifact.getScope())) {
