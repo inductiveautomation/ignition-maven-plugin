@@ -10,6 +10,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -22,6 +25,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.shared.utils.io.FileUtils;
 import org.codehaus.plexus.util.StringUtils;
 
 
@@ -36,7 +40,7 @@ public class PostModuleMojo extends AbstractMojo {
     /**
      * The {@link MavenProject}.
      */
-    @Component
+    @Parameter(defaultValue = "${project}", readonly = true)
     private MavenProject project;
 
     /**
@@ -64,10 +68,13 @@ public class PostModuleMojo extends AbstractMojo {
 
             Path buildPath = Paths.get(project.getBuild().getDirectory());
             String modulePath = buildPath.toAbsolutePath() + File.separator +
-                    StringUtils.replace(moduleName, ' ', '-') + "-unsigned.modl";
+                    StringUtils.replace(moduleName, ' ', '-') + ".modl";
+
+            if (!FileUtils.fileExists(modulePath))
+                modulePath = buildPath.toAbsolutePath() + File.separator +
+                        StringUtils.replace(moduleName, ' ', '-') + "-unsigned.modl";
 
             getLog().info("Installing " + modulePath + " to gateway.");
-
             postModuleToGateway(Paths.get(modulePath));
         } catch (Exception e) {
             throw new MojoExecutionException("Could not post the module to the Gateway.", e);
@@ -76,41 +83,32 @@ public class PostModuleMojo extends AbstractMojo {
 
     private void postModuleToGateway(Path modulePath) throws MojoExecutionException {
         URL gatewayUrl;
+        final String modulePostURI = "/main/system/DeveloperModuleLoadingServlet";
 
         try {
             if (gatewayAddress == null) {
-                gatewayUrl = new URL("http://localhost:8088/system/DeveloperModuleLoadingServlet");
+                gatewayUrl = new URL("http://localhost:8088" + modulePostURI);
             } else {
-                gatewayUrl = new URL(gatewayAddress + "/system/DeveloperModuleLoadingServlet");
+                gatewayUrl = new URL(gatewayAddress + modulePostURI);
             }
-
             getLog().info("Deploying to " + gatewayUrl.toString());
-
-            HttpURLConnection urlConn = (HttpURLConnection) gatewayUrl.openConnection();
-            getLog().debug("Successfully connected to " + gatewayUrl.toString() + "/main/system/DeveloperModuleLoadingServlet");
-            urlConn.setRequestMethod("POST");
-            urlConn.setDoOutput(true);
-            urlConn.setRequestProperty("Content-Type", "multipart/form-data");
-            urlConn.setUseCaches(false);
+            HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).build();
 
             String b64 = Base64.encodeFromFile(modulePath.toString());
             getLog().debug("Successfully encoded " + modulePath.toString() + ".");
 
-            OutputStreamWriter out = new OutputStreamWriter(urlConn.getOutputStream());
-            out.write(b64);
-            getLog().debug("Successfully wrote " + modulePath.toString() + " to Gateway.");
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(gatewayUrl.toURI())
+                    .POST(HttpRequest.BodyPublishers.ofString(b64))
+                    .header("Content-Type", "multipart/form-data")
+                    .expectContinue(false)
+                    .build();
 
-            out.flush();
-            out.close();
-            BufferedReader br = new BufferedReader(new InputStreamReader(urlConn.getInputStream()));
-            String line = null;
-
-            while ((line = br.readLine()) != null) {
-                getLog().debug(line);
-            }
-
-            br.close();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            getLog().debug(String.format("Successfully connected to %s%s", gatewayUrl.toString(), modulePostURI));
+            getLog().debug(response.body());
         } catch (Exception e) {
+            getLog().error(e);
             throw new MojoExecutionException("Could not post module to gateway.", e);
         }
     }

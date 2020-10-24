@@ -13,8 +13,10 @@ import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.cert.CertificateException;
 
+/**
+ * Signs the module
+ * */
 @Mojo(name = "sign",
         defaultPhase = LifecyclePhase.INSTALL,
         requiresDependencyResolution = ResolutionScope.RUNTIME)
@@ -23,7 +25,7 @@ public class SignModuleMojo extends AbstractMojo {
     /**
      * The {@link MavenProject}.
      */
-    @Component
+    @Parameter( defaultValue = "${project}", readonly = true )
     private MavenProject project;
 
     /**
@@ -31,12 +33,12 @@ public class SignModuleMojo extends AbstractMojo {
      * Can either be JDS or PFX format.
      * */
     @Parameter(required = true)
-    private String keyStorePath;
+    private String keystore;
 
     /**
      * The password to access they keystore.
      * */
-    @Parameter(required = true)
+    @Parameter(required = false)
     private String keystorePasswd;
 
     /**
@@ -48,7 +50,7 @@ public class SignModuleMojo extends AbstractMojo {
     /**
      * The password to access the alias.
      * */
-    @Parameter(required = true)
+    @Parameter(required = false)
     private String aliasPasswd;
 
     /**
@@ -98,11 +100,29 @@ public class SignModuleMojo extends AbstractMojo {
             getLog().debug(String.format("Attempting to sign from the following path: %s ", unsignedPath));
             getLog().info("Signing " + unsignedPath);
 
+            if(Strings.isNullOrEmpty(keystorePasswd))
+                keystorePasswd = getPasswordFromConsole("Enter the keystore password:");
+            if(Strings.isNullOrEmpty(aliasPasswd))
+                aliasPasswd = getPasswordFromConsole("Enter the alias password:");
+
             signModl(unsignedPath, signedPath);
 
         } catch (Exception e) {
-            throw new MojoExecutionException("Could not post the module to the Gateway.", e);
+            throw new MojoExecutionException("Could not sign the module", e);
         }
+    }
+
+    /**
+     * Gets a password from the user
+     * */
+    private String getPasswordFromConsole(String prompt) throws Exception {
+        Console console = System.console();
+
+        if(console == null) throw new Exception("Couldn't get System Console Instance for Password Entry");
+
+        console.printf(prompt);
+        char[] passwd = console.readPassword();
+        return new String(passwd);
     }
 
     /**
@@ -112,14 +132,14 @@ public class SignModuleMojo extends AbstractMojo {
 
         KeyStore keyStore;
 
-        if (Strings.isNullOrEmpty(pkcs11Config)) {
+        if (!Strings.isNullOrEmpty(pkcs11Config)) {
             Provider p = Security.getProvider("SunPKCS11");
             p = p.configure(pkcs11Config);
             Security.addProvider(p);
             keyStore = KeyStore.getInstance("PKCS11");
             keyStore.load(null, keystorePasswd.toCharArray());
         } else {
-            File keyStoreFile = new File(keyStorePath);
+            File keyStoreFile = new File(keystore);
             String keyStoreType = keyStoreFile.getCanonicalPath().endsWith("pfx") ? "pkcs12" : "jks";
 
             keyStore = KeyStore.getInstance(keyStoreType);
@@ -141,6 +161,5 @@ public class SignModuleMojo extends AbstractMojo {
         PrintStream printStream = new PrintStream(NullOutputStream.NULL_OUTPUT_STREAM);
         moduleSigner.signModule(printStream, moduleIn, moduleOut);
     }
-
 
 }
