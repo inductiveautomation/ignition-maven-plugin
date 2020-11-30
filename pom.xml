@@ -99,7 +99,7 @@
         <dependency>
             <groupId>com.inductiveautomation.ignitionsdk</groupId>
             <artifactId>module-signer</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.0-SNAPSOT</version>
         </dependency>
 
     </dependencies>
