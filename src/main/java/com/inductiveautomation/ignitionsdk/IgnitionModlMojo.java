@@ -1,5 +1,20 @@
 package com.inductiveautomation.ignitionsdk;
 
+import com.google.common.collect.Sets;
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugins.annotations.*;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.StringUtils;
+import org.zeroturnaround.zip.ZipUtil;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -7,40 +22,30 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
+import java.util.*;
 
-import com.google.common.collect.Sets;
-import com.google.common.collect.Sets.SetView;
-import org.apache.maven.artifact.Artifact;
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.MojoFailureException;
-import org.apache.maven.plugins.annotations.Component;
-import org.apache.maven.plugins.annotations.LifecyclePhase;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.FileUtils;
-import org.codehaus.plexus.util.StringUtils;
-import org.zeroturnaround.zip.ZipUtil;
-
+/**
+ * Builds the Ignition module
+ * */
 @Mojo(name = "modl",
     defaultPhase = LifecyclePhase.PACKAGE,
-    requiresDependencyResolution = ResolutionScope.RUNTIME)
+    requiresDependencyResolution = ResolutionScope.COMPILE,
+    requiresDependencyCollection = ResolutionScope.COMPILE)
 public class IgnitionModlMojo extends AbstractMojo {
     /**
      * The {@link MavenProject}.
      */
-    @Component
+    @Parameter( defaultValue = "${project}", readonly = true )
     private MavenProject project;
+
+    @Parameter( defaultValue = "${project.collectedProjects}", readonly = true )
+    private List<MavenProject> projects;
+
+    /**
+     * The {@link MavenProject}.
+     */
+    @Parameter( defaultValue = "${project.artifacts}", readonly = true )
+    private Set<Artifact> artifacts;
 
     /**
      * The {@link ProjectScope}s; used to map dependencies from a given Maven project to an Ignition scope.
@@ -163,15 +168,18 @@ public class IgnitionModlMojo extends AbstractMojo {
 
             getLog().info(String.format("project=%s, ignitionScope=%s", p.getName(), ignitionScope));
 
+            // maven project requires that an artifact filter be set to return artifacts from the project
+            p.setArtifactFilter(new ScopeArtifactFilter("compile"));
+            Set<Artifact> artifacts = p.getArtifacts();
+            getLog().info(String.format("Found %d artifacts for project: %s",
+                    artifacts.size(), p.getName()));
+
             if (StringUtils.contains(ignitionScope, "C")) {
                 getLog().info("building client scoped artifact set...");
 
                 clientScopeArtifacts.add(p.getArtifact());
 
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
-
-                for (Artifact artifact : projectArtifacts) {
+                for (Artifact artifact : artifacts) {
                     if ("compile".equals(artifact.getScope())) {
                         clientScopeArtifacts.add(artifact);
                     }
@@ -183,10 +191,7 @@ public class IgnitionModlMojo extends AbstractMojo {
 
                 designerScopeArtifacts.add(p.getArtifact());
 
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
-
-                for (Artifact artifact : projectArtifacts) {
+                for (Artifact artifact : artifacts) {
                     if ("compile".equals(artifact.getScope())) {
                         designerScopeArtifacts.add(artifact);
                     }
@@ -198,10 +203,7 @@ public class IgnitionModlMojo extends AbstractMojo {
 
                 gatewayScopeArtifacts.add(p.getArtifact());
 
-                SetView<Artifact> projectArtifacts = Sets.union(
-                    p.getArtifacts(), p.getDependencyArtifacts());
-
-                for (Artifact artifact : projectArtifacts) {
+                for (Artifact artifact : artifacts) {
                     if ("compile".equals(artifact.getScope())) {
                         gatewayScopeArtifacts.add(artifact);
                     }
