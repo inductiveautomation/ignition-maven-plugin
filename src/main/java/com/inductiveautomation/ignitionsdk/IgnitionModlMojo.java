@@ -164,7 +164,7 @@ public class IgnitionModlMojo extends AbstractMojo {
         }
 
         for (MavenProject p : parent.getCollectedProjects()) {
-            String ignitionScope = ignitionScopes.get(p.getName());
+            String ignitionScope = ignitionScopes.get(p.getArtifactId());
 
             getLog().info(String.format("project=%s, ignitionScope=%s", p.getName(), ignitionScope));
 
