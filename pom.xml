@@ -168,6 +168,13 @@
             <version>1.8</version>
             <type>jar</type>
         </dependency>
+        <!-- Used by ignition:write-dev-descriptor to serialize the dev module descriptor JSON.
+             Maven isolates plugin classpaths, so this does not leak into consuming builds. -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
 
     </dependencies>
 

@@ -115,8 +115,8 @@ public class IgnitionModlMojo extends AbstractMojo {
      * Specify if the module is a free module.  Defaults to false if not supplied.
      */
     @Deprecated
-    @Parameter(required = false, defaultValue = "false")
-    private String freeModule;
+    @Parameter(defaultValue = "false")
+    private boolean freeModule;
 
     /**
      * The name of the documentation index file.
@@ -322,9 +322,14 @@ public class IgnitionModlMojo extends AbstractMojo {
             }
 
             if (depends != null) {
+                // The 'required' attribute is only understood by Ignition 8.3+; emit it only then.
+                boolean writeRequired = IgnitionVersions.supportsRequiredDependencyFlag(requiredIgnitionVersion);
                 for (ModuleDepends d : depends) {
                     writer.writeStartElement("depends");
                     writer.writeAttribute("scope", d.getScope());
+                    if (writeRequired) {
+                        writer.writeAttribute("required", String.valueOf(d.isRequired()));
+                    }
                     writer.writeCharacters(d.getModuleId());
                     writer.writeEndElement();
                 }
@@ -359,7 +364,11 @@ public class IgnitionModlMojo extends AbstractMojo {
                 }
             }
 
+            Set<String> hookScopes = new HashSet<>();
             for (ModuleHook h : hooks) {
+                if (!hookScopes.add(h.getScope())) {
+                    throw new MojoExecutionException(h.getScope() + " has hookClass assigned already.");
+                }
                 writer.writeStartElement("hook");
                 writer.writeAttribute("scope", h.getScope());
                 writer.writeCharacters(h.getHookClass());
