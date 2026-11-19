@@ -125,7 +125,7 @@ public class IgnitionModlMojo extends AbstractMojo {
     private String documentationFile;
 
     /**
-     * Scope and module id of Ignition modules this module depends on.
+     * Scope, module id, and optional required flag of Ignition modules this module depends on.
      */
     @Parameter
     private ModuleDepends[] depends;
@@ -325,6 +325,9 @@ public class IgnitionModlMojo extends AbstractMojo {
                 for (ModuleDepends d : depends) {
                     writer.writeStartElement("depends");
                     writer.writeAttribute("scope", d.getScope());
+                    if (d.isRequired()) {
+                        writer.writeAttribute("required", "true");
+                    }
                     writer.writeCharacters(d.getModuleId());
                     writer.writeEndElement();
                 }
